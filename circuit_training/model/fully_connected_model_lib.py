@@ -49,8 +49,15 @@ def create_actor_net(
     return tf.keras.layers.Lambda(lambda x: x)
 
   def projection_layer():
+    units = np.unique(
+        action_tensor_spec.maximum - action_tensor_spec.minimum + 1)
+    if len(units) != 1:
+      raise ValueError(
+          'Projection layer expects a single unique action value.'
+      )
+    units = np.squeeze(units)
     return tf.keras.layers.Dense(
-        np.unique(action_tensor_spec.maximum - action_tensor_spec.minimum + 1),
+        units=units,
         activation=None,
         kernel_initializer=init,
         name='projection_layer',

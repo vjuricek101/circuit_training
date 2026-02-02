@@ -6,7 +6,7 @@
 # docker run -it --rm -v $(pwd):/workspace --workdir /workspace circuit_training:ci bash
 # python3.9 -m circuit_training.environment.environment_test
 
-FROM ubuntu:20.04
+FROM ubuntu:22.04
 
 LABEL maintainer="tobyboyd@google.com"
 
@@ -18,10 +18,12 @@ ARG APT_COMMAND="apt-get -o Acquire::Retries=3 -y"
 RUN ${APT_COMMAND} update && ${APT_COMMAND} install -y --no-install-recommends \
         software-properties-common \
         curl \
+        gnupg \
+        gpg-agent \
         less
 
 # Adds repository to pull versions of python from.
-RUN add-apt-repository ppa:deadsnakes/ppa
+RUN LC_ALL=C.UTF-8 add-apt-repository ppa:deadsnakes/ppa
 
 # Stops tzdata from asking about timezones and blocking install on user input.
 ARG DEBIAN_FRONTEND=noninteractive
