@@ -84,7 +84,7 @@ def optimize_using_dreamplace(
       'Initializing Dreamplace took %g seconds.', time.time() - start_init_time
   )
 
-  # Dreamplace optimzation.
+  # Dreamplace optimization.
   start_opt_time = time.time()
   placer.place()
   logging.info(
