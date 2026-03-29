@@ -33,14 +33,12 @@ NETLIST_METADATA = (
     'normalized_num_hard_macros',
     'normalized_num_soft_macros',
     'normalized_num_port_clusters',
-    'total_horizontal_routes_k',
-    'total_vertical_routes_k',
-    'total_macro_horizontal_routes_k',
-    'total_macro_vertical_routes_k',
+    'horizontal_routes_per_micron',
+    'vertical_routes_per_micron',
+    'macro_horizontal_routing_allocation',
+    'macro_vertical_routing_allocation',
     'grid_cols',
     'grid_rows',
-    'canvas_width',
-    'canvas_height',
 )
 
 GRAPH_ADJACENCY_MATRIX = (
@@ -56,13 +54,10 @@ NODE_STATIC_FEATURES = (
     'node_types',
 )
 
-NETLIST_INDEX = ('netlist_index',)
-
 STATIC_OBSERVATIONS = (
     NETLIST_METADATA
     + GRAPH_ADJACENCY_MATRIX
     + NODE_STATIC_FEATURES
-    + NETLIST_INDEX
 )
 
 DYNAMIC_OBSERVATIONS = (
@@ -70,10 +65,8 @@ DYNAMIC_OBSERVATIONS = (
     'locations_y',
     'is_node_placed',
     'current_node',
-    'fake_net_heatmap',
-    'packing_heatmap',
     'mask',
-) + NETLIST_INDEX
+)
 
 ALL_OBSERVATIONS = STATIC_OBSERVATIONS + DYNAMIC_OBSERVATIONS
 
@@ -88,7 +81,7 @@ class ObservationConfig(object):
   def __init__(
       self,
       max_num_nodes: int = 5_000,
-      max_num_edges: int = 70_000,
+      max_num_edges: int = 28400,
       max_grid_size: int = 128,
   ):
     self.max_num_edges = max_num_edges
@@ -111,25 +104,8 @@ class ObservationConfig(object):
         'current_node': gym.spaces.Box(
             low=0, high=self.max_num_nodes - 1, shape=(1,), dtype=np.int32
         ),
-        'fake_net_heatmap': gym.spaces.Box(
-            low=0.0,
-            high=1.0,
-            shape=(self.max_grid_size**2,),
-            dtype=np.float32,
-        ),
-        'packing_heatmap': gym.spaces.Box(
-            low=0.0,
-            high=1.0,
-            shape=(self.max_grid_size**2,),
-            dtype=np.float32,
-        ),
         'mask': gym.spaces.Box(
             low=0, high=1, shape=(self.max_grid_size**2,), dtype=np.int32
-        ),
-        # high is set to 0 intentionally, so when we sample obs for creating
-        # the model parameter, we sample 0 for netlist_index.
-        'netlist_index': gym.spaces.Box(
-            low=0, high=0, shape=(1,), dtype=np.int32
         ),
     })
 
@@ -143,18 +119,18 @@ class ObservationConfig(object):
         'normalized_num_port_clusters': gym.spaces.Box(
             low=0, high=1, shape=(1,)
         ),
-        'total_horizontal_routes_k': gym.spaces.Box(
-            low=0, high=1000, shape=(1,)
+        'horizontal_routes_per_micron': gym.spaces.Box(
+            low=0, high=100, shape=(1,)
         ),
-        'total_vertical_routes_k': gym.spaces.Box(low=0, high=1000, shape=(1,)),
-        'total_macro_horizontal_routes_k': gym.spaces.Box(
-            low=0, high=1000, shape=(1,)
+        'vertical_routes_per_micron': gym.spaces.Box(low=0, high=100, shape=(1,)),
+        'macro_horizontal_routing_allocation': gym.spaces.Box(
+            low=0, high=100, shape=(1,)
         ),
-        'total_macro_vertical_routes_k': gym.spaces.Box(
-            low=0, high=1000, shape=(1,)
+        'macro_vertical_routing_allocation': gym.spaces.Box(
+            low=0, high=100, shape=(1,)
         ),
         'sparse_adj_weight': gym.spaces.Box(
-            low=0, high=1000, shape=(self.max_num_edges,)
+            low=0, high=100, shape=(self.max_num_edges,)
         ),
         'sparse_adj_i': gym.spaces.Box(
             low=0,
@@ -190,28 +166,11 @@ class ObservationConfig(object):
         ),
         'grid_cols': gym.spaces.Box(low=0, high=1, shape=(1,)),
         'grid_rows': gym.spaces.Box(low=0, high=1, shape=(1,)),
-        'canvas_width': gym.spaces.Box(low=0, high=1, shape=(1,)),
-        'canvas_height': gym.spaces.Box(low=0, high=1, shape=(1,)),
         'current_node': gym.spaces.Box(
             low=0, high=self.max_num_nodes - 1, shape=(1,), dtype=np.int32
         ),
-        'fake_net_heatmap': gym.spaces.Box(
-            low=0.0,
-            high=1.0,
-            shape=(self.max_grid_size**2,),
-            dtype=np.float32,
-        ),
-        'packing_heatmap': gym.spaces.Box(
-            low=0.0,
-            high=1.0,
-            shape=(self.max_grid_size**2,),
-            dtype=np.float32,
-        ),
         'mask': gym.spaces.Box(
             low=0, high=1, shape=(self.max_grid_size**2,), dtype=np.int32
-        ),
-        'netlist_index': gym.spaces.Box(
-            low=0, high=0, shape=(1,), dtype=np.int32
         ),
     })
 
@@ -254,15 +213,6 @@ def to_dict_static(
     flatten_obs: TensorType,
     observation_config: Optional[ObservationConfig] = None,
 ) -> Dict[Text, TensorType]:
-  """Convert the flattend numpy array of static observations back to a dict.
-
-  Args:
-    flatten_obs: a numpy array of static observations.
-    observation_config: Optional observation config.
-
-  Returns:
-    A dict representation of the observations.
-  """
   return _to_dict(
       flatten_obs=flatten_obs,
       keys=STATIC_OBSERVATIONS,
@@ -274,15 +224,6 @@ def to_dict_dynamic(
     flatten_obs: TensorType,
     observation_config: Optional[ObservationConfig] = None,
 ) -> Dict[Text, TensorType]:
-  """Convert the flattend numpy array of dynamic observations back to a dict.
-
-  Args:
-    flatten_obs: a numpy array of dynamic observations.
-    observation_config: Optional observation config.
-
-  Returns:
-    A dict representation of the observations.
-  """
   return _to_dict(
       flatten_obs=flatten_obs,
       keys=DYNAMIC_OBSERVATIONS,
@@ -294,17 +235,9 @@ def to_dict_all(
     flatten_obs: TensorType,
     observation_config: Optional[ObservationConfig] = None,
 ) -> Dict[Text, TensorType]:
-  """Convert the flattend numpy array of observations back to a dict.
-
-  Args:
-    flatten_obs: a numpy array of observations.
-    observation_config: Optional observation config.
-
-  Returns:
-    A dict representation of the observations.
-  """
   return _to_dict(
       flatten_obs=flatten_obs,
       keys=ALL_OBSERVATIONS,
       observation_config=observation_config,
   )
+

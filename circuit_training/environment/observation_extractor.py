@@ -152,20 +152,19 @@ class ObservationExtractor(object):
 
   def _extract_technology_info(self, features: Dict[Text, np.ndarray]) -> None:
     """Extracts Technology-related information."""
-    # Divide these by 1000.0 to make their values closer to the rest of the
-    # features.
+    # These are directly extracted without scaling.
     routing_resources = {
-        'total_horizontal_routes_k': (
-            self.plc.get_routes_per_micron()[0] * self.height / 1000.0
+        'horizontal_routes_per_micron': (
+            self.plc.get_routes_per_micron()[0]
         ),
-        'total_vertical_routes_k': (
-            self.plc.get_routes_per_micron()[1] * self.width / 1000.0
+        'vertical_routes_per_micron': (
+            self.plc.get_routes_per_micron()[1]
         ),
-        'total_macro_horizontal_routes_k': (
-            self.plc.get_macro_routing_allocation()[0] * self.height / 1000.0
+        'macro_horizontal_routing_allocation': (
+            self.plc.get_macro_routing_allocation()[0]
         ),
-        'total_macro_vertical_routes_k': (
-            self.plc.get_macro_routing_allocation()[0] * self.width / 1000.0
+        'macro_vertical_routing_allocation': (
+            self.plc.get_macro_routing_allocation()[1]
         ),
     }
     for k in routing_resources:
@@ -644,3 +643,4 @@ class ObservationExtractor(object):
         )
     )
     return features
+

@@ -21,8 +21,12 @@ import time
 from typing import Any, Callable, Optional, Protocol
 
 from absl import logging
-from circuit_training.dreamplace import dreamplace_core
-from circuit_training.dreamplace import dreamplace_util
+try:
+    from circuit_training.dreamplace import dreamplace_core
+    from circuit_training.dreamplace import dreamplace_util
+except ImportError:
+    dreamplace_core = None
+    dreamplace_util = None
 from circuit_training.environment import coordinate_descent_placer as cd_placer
 from circuit_training.environment import observation_config
 from circuit_training.environment import observation_extractor
@@ -225,6 +229,12 @@ class CircuitEnv(object):
     self._observation_config = observation_config.ObservationConfig()
 
     self._grid_cols, self._grid_rows = self._plc.get_grid_num_columns_rows()
+    # Force grid to 128x128 to match the pre-trained policy capacity.
+    if self._grid_cols != 128 or self._grid_rows != 128:
+        logging.info('Overriding design grid (%sx%s) to 128x128 for policy compatibility.',
+                     self._grid_cols, self._grid_rows)
+        self._plc.set_placement_grid(128, 128)
+        self._grid_cols, self._grid_rows = self._plc.get_grid_num_columns_rows()
     self._canvas_width, self._canvas_height = (
         self._plc.get_canvas_width_height()
     )
@@ -235,6 +245,7 @@ class CircuitEnv(object):
         if not (self._plc.is_node_soft_macro(m) or self._plc.is_node_fixed(m))
     ]
     self._num_hard_macros = len(self._hard_macro_indices)
+    print(f"***Num node to place: {self._num_hard_macros}***")
     logging.info('***Num node to place***:%s', self._num_hard_macros)
 
     if node_order_file:
@@ -338,7 +349,7 @@ class CircuitEnv(object):
       self,
       dp_target_density: float,
       regioning: Optional[bool] = None,
-  ) -> dreamplace_core.SoftMacroPlacer:
+  ) -> object:
     """Creates the SoftMacroPlacer."""
     canvas_width, canvas_height = self._plc.get_canvas_width_height()
     if regioning is None:
@@ -390,16 +401,13 @@ class CircuitEnv(object):
       node_index = self._sorted_node_indices[self._current_node]
       mask = np.asarray(self._plc.get_node_mask(node_index), dtype=np.int32)
       mask = np.reshape(mask, [self._grid_rows, self._grid_cols])
-      pad = (
-          (
-              self._observation_extractor.up_pad,
-              self._observation_extractor.low_pad,
-          ),
-          (
-              self._observation_extractor.right_pad,
-              self._observation_extractor.left_pad,
-          ),
-      )
+      # Add padding to reach max_grid_size (128). If grid is already 128, pad will be 0.
+      up_pad = max(0, self._observation_extractor.up_pad)
+      low_pad = max(0, self._observation_extractor.low_pad)
+      right_pad = max(0, self._observation_extractor.right_pad)
+      left_pad = max(0, self._observation_extractor.left_pad)
+      
+      pad = ((up_pad, low_pad), (right_pad, left_pad))
       mask = np.pad(mask, pad, mode='constant', constant_values=0)
     return np.reshape(
         mask, (self._observation_config.max_grid_size**2,)
@@ -652,6 +660,10 @@ class CircuitEnv(object):
         )
         return self._get_obs(), cost, True, info
       else:
+        # Save partial placement even in infeasible case, so the bridge can
+        # use the macros that were successfully placed.
+        if self._save_placement and self._save_partial_placement:
+          self._save_placement_fn(-1.0)
         info = {cost: -1.0 for cost in COST_COMPONENTS}
         return self._get_obs(), self.INFEASIBLE_REWARD, True, info
 

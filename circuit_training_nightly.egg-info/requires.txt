@@ -1,0 +1,6 @@
+tf-agents-nightly[reverb]
+sortedcontainers
+
+[testing]
+tf-agents-nightly[reverb]
+sortedcontainers

@@ -19,7 +19,10 @@ import time
 from absl import logging
 from circuit_training.dreamplace import dreamplace_util
 from circuit_training.dreamplace import placedb_plc
-from dreamplace import NonLinearPlace
+try:
+    from dreamplace import NonLinearPlace
+except ImportError:
+    NonLinearPlace = None
 import gin
 import timeout_decorator
 

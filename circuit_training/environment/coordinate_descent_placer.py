@@ -18,8 +18,12 @@ import time
 from typing import Callable, Optional
 
 from absl import logging
-from circuit_training.dreamplace import dreamplace_core
-from circuit_training.dreamplace import dreamplace_util
+try:
+    from circuit_training.dreamplace import dreamplace_core
+    from circuit_training.dreamplace import dreamplace_util
+except ImportError:
+    dreamplace_core = None
+    dreamplace_util = None
 from circuit_training.environment import placement_util
 from circuit_training.environment import plc_client
 import gin

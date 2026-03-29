@@ -21,7 +21,10 @@ from typing import Optional
 
 from absl import logging
 import circuit_training.environment.placement_util as util
-from dreamplace import Params
+try:
+    from dreamplace import Params
+except ImportError:
+    Params = None
 import gin
 
 
